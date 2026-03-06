@@ -1251,15 +1251,21 @@ textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba
       <div style="font-size:1rem;font-weight:800;color:var(--navy)">✍️ Configuração — Autoavaliação</div>
     </div>
     <div class="card">
-      <div class="card-title"><span class="ct-icon">✍️</span> Resultados de Autoavaliação
-        <button class="btn btn-outline btn-sm" style="margin-left:auto"
-                onclick="importAutoAvFromSheets()">🔄 Importar do Sheets</button>
-        <button class="btn btn-outline btn-sm"
-                onclick="exportAutoAvCSV()">📊 CSV</button>
+      <div class="card-title"><span class="ct-icon">✍️</span> Resultados de Autoavaliação</div>
+
+      <!-- Discipline selector -->
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
+        <button class="btn btn-primary btn-sm" onclick="listAutoAvSheets()">🔄 Listar Disciplinas</button>
+        <button class="btn btn-outline btn-sm" onclick="importAutoAvAll()">📥 Importar Todas</button>
+        <button class="btn btn-outline btn-sm" onclick="exportAutoAvCSV()" id="btn-autoav-csv" style="display:none">📊 CSV</button>
+      </div>
+      <div id="autoav-sheets-list" style="display:none;margin-bottom:12px">
+        <div style="font-size:.75rem;font-weight:700;color:var(--navy);margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em">Folhas disponíveis</div>
+        <div id="autoav-sheets-items" style="display:flex;gap:6px;flex-wrap:wrap"></div>
       </div>
       <div id="autoav-results-container">
         <div style="color:var(--muted);font-size:.84rem;padding:20px;text-align:center">
-          Clica em 🔄 Importar para carregar as autoavaliações dos alunos.
+          Clica em 🔄 Listar Disciplinas para ver as folhas disponíveis no Sheets.
         </div>
       </div>
     </div>
@@ -2361,18 +2367,20 @@ function renderAdmGroups(){
 
 
 async function clearAutoAvData(){
-  if(!confirm(
-    'Apagar TODAS as autoavaliações?\n\n' +
-    '• Dados locais (resultados importados)\n' +
-    '• Folha "Autoavaliação" no Google Sheets\n\n' +
-    '⚠️ Esta operação não pode ser desfeita.'
-  )) return;
-  _autoAvData = [];
+  const cfg=loadAutoAvCfg();
+  const disc=cfg.disciplina||'';
+  const sheetName=disc?('AA_'+disc.trim().split(/[\s,\-]+/).filter(w=>!['e','de','da','do','a'].includes(w.toLowerCase())).slice(0,6).map(w=>w[0].toUpperCase()).join('')):'';
+  const msg=disc
+    ? `Apagar as autoavaliações de "${disc}" no Sheets?`
+    : 'Apagar TODAS as autoavaliações no Sheets?';
+  if(!confirm(msg+'\n\n⚠️ Esta operação não pode ser desfeita.')) return;
+  _autoAvData=_autoAvData.filter(r=>disc?r.disciplina!==disc:false);
   renderAutoAvResults();
   setSyncStatus('spin','A apagar no Sheets...');
-  const res = await postToSheet({action:'clearAutoAv'});
+  const payload=disc?{action:'clearAutoAv',disciplina:disc}:{action:'clearAutoAv'};
+  const res=await postToSheet(payload);
   if(res&&res.ok){ toast('🗑️ Autoavaliações apagadas!'); setSyncStatus('ok','Ligado'); }
-  else { toast('⚠️ Dados locais apagados. Falha no Sheets — apaga a folha manualmente.','warn'); setSyncStatus('err','Erro'); }
+  else{ toast('⚠️ Dados locais apagados. Verifica o Sheets.','warn'); setSyncStatus('err','Erro'); }
 }
 
 function confirmNovaAutoAvSessao(){
@@ -3713,7 +3721,12 @@ async function submitAutoAv(){
   };
 
   try {
-    const res = await postToSheet({action:'autoavSubmit', record, cfg});
+    // sheetName derived from disciplina — Apps Script creates tab if needed
+    const sheetName = 'AA_' + (cfg.disciplina||'').trim()
+      .split(/[\s,\-&]+/)
+      .filter(w=>!['e','a','o','as','os','de','da','do','das','dos','em','um','uma'].includes(w.toLowerCase()) && w.length>0)
+      .slice(0,4).map(w=>w[0].toUpperCase()).join('') || 'Autoav';
+    const res = await postToSheet({action:'autoavSubmit', record, cfg, sheetName});
     if(res&&res.ok){
       // Mark as done
       const done=JSON.parse(localStorage.getItem(KEY_AUTOAV_DONE)||'[]');
@@ -3999,6 +4012,54 @@ function tryLoadAutoAvFromURL(){
 
 // ── Results (professor) ──────────────────────────────────────────────
 let _autoAvData = [];
+let _autoAvSheets = [];
+
+async function listAutoAvSheets(){
+  if(!getURL()){toast('Configura o URL do Google Sheets primeiro.','warn');return;}
+  try{
+    setSyncStatus('spin','A listar...');
+    const res=await postToSheet({action:'listAutoAvSheets'});
+    if(!res||!res.ok) throw new Error(res?.error||'Erro');
+    _autoAvSheets=res.sheets||[];
+    renderAutoAvSheetsList();
+    setSyncStatus('ok','Ligado');
+    if(!_autoAvSheets.length) toast('Sem folhas de autoavaliacao no Sheets ainda.');
+    else toast('\u2705 '+_autoAvSheets.length+' disciplina(s) encontrada(s).');
+  }catch(e){ toast('\u274C '+e.message,'warn'); setSyncStatus('err','Erro'); }
+}
+
+function renderAutoAvSheetsList(){
+  const wrap=document.getElementById('autoav-sheets-list');
+  const items=document.getElementById('autoav-sheets-items');
+  if(!wrap||!items) return;
+  if(!_autoAvSheets.length){wrap.style.display='none';return;}
+  wrap.style.display='block';
+  items.innerHTML=_autoAvSheets.map(s=>{
+    const short=s.sheetName.replace('AA_','');
+    const disc=(s.disciplina||short).replace(/'/g,"\\'");
+    return '<button class="btn btn-outline btn-sm" onclick="importAutoAvSheet(\''+s.sheetName+'\',\''+disc+'\')">📋 '+short+' <span style=\"font-size:.68rem;opacity:.6\">'+(s.count||0)+'r</span></button>';
+  }).join('');
+}
+
+async function importAutoAvSheet(sheetName, disciplinaLabel){
+  if(!getURL()){toast('Configura o URL do Google Sheets primeiro.','warn');return;}
+  try{
+    setSyncStatus('spin','A importar...');
+    const res=await postToSheet({action:'getAutoAv', sheetName});
+    if(!res||!res.ok) throw new Error(res?.error||'Erro');
+    _autoAvData=_autoAvData.filter(r=>(r.sheetName)!==sheetName);
+    (res.records||[]).forEach(r=>{ r.sheetName=sheetName; });
+    _autoAvData.push(...(res.records||[]));
+    renderAutoAvResults();
+    const csvBtn=document.getElementById('btn-autoav-csv');
+    if(csvBtn) csvBtn.style.display='';
+    setSyncStatus('ok','Ligado');
+    toast('\u2705 '+(res.records?.length||0)+' registos de '+(disciplinaLabel||sheetName)+'.');
+  }catch(e){ toast('\u274C '+e.message,'warn'); setSyncStatus('err','Erro'); }
+}
+
+async function importAutoAvAll(){ return importAutoAvFromSheets(); }
+
 
 function renderAutoAvResults(){
   const el=document.getElementById('autoav-results-container');
@@ -4006,20 +4067,42 @@ function renderAutoAvResults(){
     el.innerHTML='<div style="color:var(--muted);font-size:.84rem;padding:20px;text-align:center">Clica em 🔄 Importar para carregar as autoavaliações dos alunos.</div>';
     return;
   }
-  const cfg=loadAutoAvCfg();
-  const sorted=[..._autoAvData].sort((a,b)=>b.notaFinal-a.notaFinal);
 
-  let html=`<div class="autoav-result-row autoav-result-hdr">
-    <div>Aluno</div>
-    ${cfg.vetores.map(v=>`<div style="text-align:center;font-size:.72rem">${v.nome}<br>${v.peso}%</div>`).join('')}
-    <div style="text-align:center">Nota Final</div>
-  </div>`;
+  // Group by discipline/sheet
+  const groups={};
+  _autoAvData.forEach(r=>{
+    const key = r._sheet || ('AA_'+(r.disciplina||'—'));
+    if(!groups[key]) groups[key]=[];
+    groups[key].push(r);
+  });
 
-  sorted.forEach((r,i)=>{
-    html+=`<div class="autoav-result-row">
-      <div style="font-weight:600">${i+1}. ${r.nome}</div>
-      ${(r.vetores||[]).map(v=>`<div style="text-align:center">${v.subtotal}/20</div>`).join('')}
-      <div class="autoav-final-score" style="text-align:center">${r.notaFinal}/20</div>
+  let html='';
+  Object.entries(groups).forEach(([sheetKey, records])=>{
+    const disciplina = records[0].disciplina || sheetKey.replace('AA_','');
+    const turma      = records[0].turma || '';
+    const sorted     = [...records].sort((a,b)=>b.notaFinal-a.notaFinal);
+    // Use vetores from first record with data
+    const vetores = sorted[0]?.vetores || [];
+
+    html+=`<div style="margin-bottom:18px">
+      <div style="font-size:.82rem;font-weight:700;color:var(--primary);
+                  padding:6px 10px;background:#EFF6FF;border-radius:8px 8px 0 0;
+                  border:1px solid #BFDBFE;border-bottom:none">
+        📚 ${disciplina}${turma?' · '+turma:''} <span style="font-weight:400;opacity:.6">(${sorted.length} alunos)</span>
+      </div>
+      <div style="border:1px solid #BFDBFE;border-radius:0 0 8px 8px;overflow:hidden">
+        <div class="autoav-result-row autoav-result-hdr">
+          <div>Aluno</div>
+          ${vetores.map(v=>`<div style="text-align:center;font-size:.72rem">${v.nome}<br>${v.peso}%</div>`).join('')}
+          <div style="text-align:center">Nota Final</div>
+        </div>
+        ${sorted.map((r,i)=>`
+        <div class="autoav-result-row">
+          <div style="font-weight:600">${i+1}. ${r.nome}</div>
+          ${(r.vetores||[]).map(v=>`<div style="text-align:center">${v.subtotal}/20</div>`).join('')}
+          <div class="autoav-final-score" style="text-align:center">${r.notaFinal}/20</div>
+        </div>`).join('')}
+      </div>
     </div>`;
   });
   el.innerHTML=html;
@@ -4030,14 +4113,19 @@ async function importAutoAvFromSheets(){
   if(!url){toast('Configura o URL do Google Sheets primeiro.','warn');return;}
   const btn=document.querySelector('[onclick="importAutoAvFromSheets()"]');
   if(btn){btn.disabled=true;btn.textContent='⏳ A importar...';}
+  setSyncStatus('spin','A importar...');
   try{
-    const res=await postToSheet({action:'getAutoAv'});
+    const res=await postToSheet({action:'getAutoAv'}); // fetches all AA_ tabs
     if(!res||!res.ok) throw new Error(res?.error||'Erro');
     _autoAvData=res.records||[];
     renderAutoAvResults();
-    toast(`✅ ${_autoAvData.length} autoavaliações importadas.`);
+    setSyncStatus('ok','Ligado');
+    const sheets=res.sheets||[];
+    const info=sheets.length>1?' ('+sheets.map(s=>s.replace('AA_','')).join(', ')+')':'';
+    toast(`✅ ${_autoAvData.length} autoavaliações importadas`+info+'.');
   }catch(e){
     toast('❌ Erro: '+e.message,'warn');
+    setSyncStatus('err','Erro');
   }finally{
     if(btn){btn.disabled=false;btn.textContent='🔄 Importar do Sheets';}
   }
