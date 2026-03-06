@@ -843,10 +843,10 @@ textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba
       <button class="btn btn-outline btn-sm" style="margin-top:12px;width:100%" onclick="event.stopPropagation();openVoteCfg()">⚙️ Configurar</button>
     </div>
 
-    <div class="card" style="cursor:pointer;transition:.2s" onmouseenter="this.style.transform='translateY(-2px)'" onmouseleave="this.style.transform=''" onclick="askAutoAv()">
+    <div class="card" style="cursor:pointer;transition:.2s" onmouseenter="this.style.transform='translateY(-2px)'" onmouseleave="this.style.transform=''" onclick="openAutoAvProfSection()">
       <div class="card-title" style="gap:8px"><span class="ct-icon">✍️</span> Configuração de Autoavaliação</div>
       <p style="font-size:.79rem;color:var(--muted);margin:0">Vetores, pesos e características da autoavaliação.</p>
-      <button class="btn btn-outline btn-sm" style="margin-top:12px;width:100%" onclick="event.stopPropagation();askAutoAv()">⚙️ Configurar</button>
+      <button class="btn btn-outline btn-sm" style="margin-top:12px;width:100%" onclick="event.stopPropagation();openAutoAvProfSection()">⚙️ Configurar</button>
     </div>
 
   </div>
@@ -2252,7 +2252,10 @@ function saveSession(){
 }
 function resetSession(){
   if(!confirm('Limpar configuração da sessão?')) return;
-  saveState(s=>{s.session=DEFAULT_SESSION;}); renderAdmin(); updatePageTitle();
+  saveState(s=>{s.session={...DEFAULT_SESSION}});
+  loadSessionFields();   // clear the visible form inputs
+  updatePageTitle();
+  toast('↺ Sessão limpa.');
 }
 function loadSessionFields(){
   const s=loadState(); const ss=s.session||DEFAULT_SESSION;
