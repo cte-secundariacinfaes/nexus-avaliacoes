@@ -1649,6 +1649,24 @@ function go(v){
 // ── Session Info Banner ──────────────────────────────────────────────
 const KEY_SESSION_INFO = 'nexus_session_info';
 
+// ── Discipline → sheet tab name (must match GAS disciplinaToSheetName) ──
+function disciplinaToSheetName(disc){
+  if(!disc||!disc.trim()) return 'AA_GERAL';
+  const d = disc.trim();
+  const ufcd = d.match(/UFCD\s*(\d+)/i);
+  if(ufcd) return 'AA_UFCD'+ufcd[1];
+  const stop = new Set(['e','de','da','do','das','dos','a','o','em','por','para','com','na','no']);
+  const tokens = d.replace(/[,\u2013\u2014\/\\()\[\]]/g,' ').match(/[0-9]+|[^\s0-9]+/g)||[];
+  let abbr='';
+  tokens.forEach(function(t){
+    if(/^[0-9]+$/.test(t)){ abbr+=t; }
+    else if(!stop.has(t.toLowerCase())&&t.length>0){ abbr+=t[0].toUpperCase(); }
+  });
+  if(!abbr) abbr=d.substring(0,4).replace(/\s/g,'').toUpperCase();
+  return 'AA_'+abbr.substring(0,15);
+}
+
+
 function saveSessaoInfo(){
   const val = document.getElementById('sessao-info-text')?.value || '';
   ls(KEY_SESSION_INFO, val);
@@ -2368,15 +2386,7 @@ function renderAdmGroups(){
 async function clearAutoAvData(){
   const cfg=loadAutoAvCfg();
   const disc=cfg.disciplina||'';
-  const sheetName=(function(){
-    const d=(disc||'').trim();
-    if(!d) return '';
-    const stop=new Set(['e','a','o','de','da','do','das','dos','em']);
-    const tokens=d.match(/[0-9]+|[^\s,\-&0-9]+/g)||[];
-    let abbr='';
-    tokens.forEach(t=>{ if(/^[0-9]+$/.test(t)){abbr+=t;}else if(!stop.has(t.toLowerCase())&&t.length>0){abbr+=t[0].toUpperCase();} });
-    return 'AA_'+(abbr||d.substring(0,3).toUpperCase());
-  })();
+  const sheetName=disc ? disciplinaToSheetName(disc) : '';
   const msg=disc
     ? `Apagar as autoavaliações de "${disc}" no Sheets?`
     : 'Apagar TODAS as autoavaliações no Sheets?';
@@ -3720,6 +3730,7 @@ async function submitAutoAv(){
     disciplina: cfg.disciplina,
     ano: cfg.ano,
     anoLetivo: cfg.anoLetivo,
+    data: cfg.data || '',
     vetores: vetoresData,
     notaFinal,
     ts: new Date().toISOString()
@@ -3727,22 +3738,7 @@ async function submitAutoAv(){
 
   try {
     // sheetName derived from disciplina — Apps Script creates tab if needed
-    const sheetName = (function(){
-      const d = (cfg.disciplina||'').trim();
-      if(!d) return 'AA_Autoav';
-      const stopWords = new Set(['e','a','o','as','os','de','da','do','das','dos','em','um','uma']);
-      // Split into tokens — words and number sequences kept separately
-      const tokens = d.match(/[0-9]+|[^\s,\-&0-9]+/g) || [];
-      let abbr = '';
-      tokens.forEach(tok => {
-        if(/^[0-9]+$/.test(tok)){
-          abbr += tok; // keep all digits
-        } else if(!stopWords.has(tok.toLowerCase()) && tok.length > 0){
-          abbr += tok[0].toUpperCase(); // first letter of word
-        }
-      });
-      return 'AA_' + (abbr || d.substring(0,3).toUpperCase());
-    })();
+    const sheetName = disciplinaToSheetName(cfg.disciplina);
     const res = await postToSheet({action:'autoavSubmit', record, cfg, sheetName});
     if(res&&res.ok){
       // Mark as done
@@ -4086,7 +4082,7 @@ function renderAutoAvResults(){
   // Group by discipline/sheet
   const groups={};
   _autoAvData.forEach(r=>{
-    const key = r._sheet || ('AA_'+(r.disciplina||'—'));
+    const key = r.sheetName || r._sheet || ('AA_'+(r.disciplina||'—'));
     if(!groups[key]) groups[key]=[];
     groups[key].push(r);
   });
@@ -4094,7 +4090,7 @@ function renderAutoAvResults(){
   let html='';
   Object.entries(groups).forEach(([sheetKey, records])=>{
     const disciplina = records[0].disciplina || sheetKey.replace('AA_','');
-    const turma      = records[0].turma || '';
+    const turma      = records[0].ano   || '';
     const sorted     = [...records].sort((a,b)=>b.notaFinal-a.notaFinal);
     // Use vetores from first record with data
     const vetores = sorted[0]?.vetores || [];
