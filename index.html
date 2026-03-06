@@ -3301,11 +3301,11 @@ const DEFAULT_AUTOAV_CFG = {
   data: '',         // ex: 26/03/2026
   anoLetivo: '',    // ex: 2025-26
   vetores: [
-    { id:'v1', nome:'Vetor 1', peso:40,
+    { id:'v1', nome:'Vetor 1', abrev:'', peso:40,
       caracteristicas:['Característica 1','Característica 2','Característica 3','Característica 4'] },
-    { id:'v2', nome:'Vetor 2', peso:30,
+    { id:'v2', nome:'Vetor 2', abrev:'', peso:30,
       caracteristicas:['Característica 1','Característica 2','Característica 3','Característica 4'] },
-    { id:'v3', nome:'Vetor 3', peso:30,
+    { id:'v3', nome:'Vetor 3', abrev:'', peso:30,
       caracteristicas:['Característica 1','Característica 2','Característica 3','Característica 4'] },
   ]
 };
@@ -3841,12 +3841,18 @@ function renderVetorCfg(v, vi){
     <div class="av-cfg-vetor">
       <div class="av-cfg-vetor-hdr">
         <input type="text" class="field-input" id="avcfg-v${vi}-nome"
-               value="${v.nome||'Vetor '+(vi+1)}" placeholder="Nome do vetor"
+               value="${v.nome||'Vetor '+(vi+1)}" placeholder="Nome completo do vetor"
                oninput="updateWeightBar()">
         <input type="number" class="av-weight-inp" id="avcfg-v${vi}-peso"
                value="${v.peso||0}" min="0" max="100" placeholder="%"
                oninput="updateWeightBar()">
         <span style="font-size:.8rem;color:var(--muted)">%</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
+        <span style="font-size:.74rem;color:var(--muted);white-space:nowrap">Título reduzido:</span>
+        <input type="text" class="field-input" id="avcfg-v${vi}-abrev"
+               value="${v.abrev||''}" placeholder="ex: Conhecimento Científico (opcional)"
+               style="font-size:.78rem">
       </div>
       <div style="font-size:.76rem;color:var(--muted);margin-bottom:8px">
         4 características (cada uma vale 0–5 pontos → total 0–20 por vetor)
@@ -3893,7 +3899,8 @@ function saveAutoAvCfgUI(){
     data:       document.getElementById('avcfg-data')?.value||'',
     vetores: [0,1,2].map(vi=>({
       id: 'v'+(vi+1),
-      nome: document.getElementById('avcfg-v'+vi+'-nome')?.value.trim()||'Vetor '+(vi+1),
+      nome:  document.getElementById('avcfg-v'+vi+'-nome')?.value.trim()||'Vetor '+(vi+1),
+      abrev: document.getElementById('avcfg-v'+vi+'-abrev')?.value.trim()||'',
       peso: Number(document.getElementById('avcfg-v'+vi+'-peso')?.value)||0,
       caracteristicas: [0,1,2,3].map(ci=>
         document.getElementById('avcfg-v'+vi+'-c'+ci)?.value.trim()||'Característica '+(ci+1)
@@ -3919,7 +3926,7 @@ function buildAutoAvURL(){
     d:  cfg.disciplina,
     a:  cfg.ano,
     al: cfg.anoLetivo,
-    v:  cfg.vetores.map(v=>({id:v.id,n:v.nome,p:v.peso,c:v.caracteristicas})),
+    v:  cfg.vetores.map(v=>({id:v.id,n:v.nome,ab:v.abrev||'',p:v.peso,c:v.caracteristicas})),
     u:  sheetUrl||''
   };
   const encoded = btoa(
@@ -4140,7 +4147,7 @@ function renderAutoAvResults(){
       <div style="border:1px solid #BFDBFE;border-radius:0 0 8px 8px;overflow:hidden">
         <div class="autoav-result-row autoav-result-hdr">
           <div>Aluno</div>
-          ${vetores.map(v=>`<div style="text-align:center;font-size:.72rem">${v.nome}<br>${v.peso}%</div>`).join('')}
+          ${vetores.map(v=>`<div style="text-align:center;font-size:.72rem">${v.abrev||v.nome}<br>${v.peso}%</div>`).join('')}
           <div style="text-align:center">Nota Final</div>
         </div>
         ${sorted.map((r,i)=>`
@@ -4389,7 +4396,7 @@ function buildCombinedURL(){
       an: cfg.ano,
       al: cfg.anoLetivo,
       da: cfg.data||'',
-      v:  cfg.vetores.map(v=>({id:v.id,n:v.nome,p:v.peso,c:v.caracteristicas}))
+      v:  cfg.vetores.map(v=>({id:v.id,n:v.nome,ab:v.abrev||'',p:v.peso,c:v.caracteristicas}))
     }
   };
   const base = location.href.split('?')[0].split('#')[0];
@@ -4429,7 +4436,7 @@ function tryLoadCombinedFromURL(){
         ano:        raw.a.an||'',
         anoLetivo:  raw.a.al||'',
         data:       raw.a.da||'',
-        vetores:    raw.a.v.map(v=>({id:v.id,nome:v.n,peso:v.p,caracteristicas:v.c||['','','','']}))
+        vetores:    raw.a.v.map(v=>({id:v.id,nome:v.n,abrev:v.ab||'',peso:v.p,caracteristicas:v.c||['','','','']}))
       });
     }
 
