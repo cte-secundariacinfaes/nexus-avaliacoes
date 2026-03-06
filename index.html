@@ -1195,7 +1195,6 @@ textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba
       <p id="aah-desc">Avalia o teu desempenho de forma honesta e reflexiva.</p>
       <div class="meta">
         <span id="aah-turma">—</span>
-        <span id="aah-ano">—</span>
         <span id="aah-anoletivo">—</span>
       </div>
     </div>
@@ -3549,8 +3548,7 @@ function renderAutoAvView(){
   // Update hero
   document.getElementById('aah-disciplina').textContent = cfg.disciplina || 'Autoavaliação';
   document.getElementById('aah-desc').textContent = 'Avalia o teu desempenho de forma honesta e reflexiva.';
-  document.getElementById('aah-turma').textContent = cfg.turma ? '🏫 ' + cfg.turma : '—';
-  document.getElementById('aah-ano').textContent = cfg.ano ? '📚 ' + cfg.ano : '—';
+  document.getElementById('aah-turma').textContent = cfg.ano ? '🏫 ' + cfg.ano : '—';
   document.getElementById('aah-anoletivo').textContent = cfg.anoLetivo ? '🗓️ ' + cfg.anoLetivo : '—';
   const aahData = document.getElementById('aah-data');
   if(aahData) aahData.textContent = cfg.data ? '📅 ' + cfg.data.split('-').reverse().join('/') : '—';
@@ -3712,7 +3710,6 @@ async function submitAutoAv(){
   const record = {
     nome: _avNome,
     disciplina: cfg.disciplina,
-    turma: cfg.turma,
     ano: cfg.ano,
     anoLetivo: cfg.anoLetivo,
     vetores: vetoresData,
@@ -3722,10 +3719,22 @@ async function submitAutoAv(){
 
   try {
     // sheetName derived from disciplina — Apps Script creates tab if needed
-    const sheetName = 'AA_' + (cfg.disciplina||'').trim()
-      .split(/[\s,\-&]+/)
-      .filter(w=>!['e','a','o','as','os','de','da','do','das','dos','em','um','uma'].includes(w.toLowerCase()) && w.length>0)
-      .slice(0,4).map(w=>w[0].toUpperCase()).join('') || 'Autoav';
+    const sheetName = (function(){
+      const d = (cfg.disciplina||'').trim();
+      if(!d) return 'AA_Autoav';
+      const stopWords = new Set(['e','a','o','as','os','de','da','do','das','dos','em','um','uma']);
+      // Split into tokens — words and number sequences kept separately
+      const tokens = d.match(/[0-9]+|[^\s,\-&0-9]+/g) || [];
+      let abbr = '';
+      tokens.forEach(tok => {
+        if(/^[0-9]+$/.test(tok)){
+          abbr += tok; // keep all digits
+        } else if(!stopWords.has(tok.toLowerCase()) && tok.length > 0){
+          abbr += tok[0].toUpperCase(); // first letter of word
+        }
+      });
+      return 'AA_' + (abbr || d.substring(0,3).toUpperCase());
+    })();
     const res = await postToSheet({action:'autoavSubmit', record, cfg, sheetName});
     if(res&&res.ok){
       // Mark as done
@@ -3871,7 +3880,6 @@ function updateWeightBar(){
 function saveAutoAvCfgUI(){
   const cfg = {
     disciplina: document.getElementById('avcfg-disciplina')?.value.trim()||'',
-    turma:      document.getElementById('avcfg-ano')?.value.trim()||'',
     ano:        document.getElementById('avcfg-ano')?.value.trim()||'',
     anoLetivo:  document.getElementById('avcfg-anoletivo')?.value.trim()||'',
     data:       document.getElementById('avcfg-data')?.value||'',
@@ -3901,7 +3909,6 @@ function buildAutoAvURL(){
   const payload = {
     av: 1,
     d:  cfg.disciplina,
-    t:  cfg.turma,
     a:  cfg.ano,
     al: cfg.anoLetivo,
     v:  cfg.vetores.map(v=>({id:v.id,n:v.nome,p:v.peso,c:v.caracteristicas})),
@@ -4151,7 +4158,7 @@ function exportAutoAvCSV(){
 // ── Autoavaliação data controls ──────────────────────────────────────
 
 function resetAutoAvSession(){
-  if(!confirm('Iniciar nova sessão de autoavaliação?\n\nIsso apagará a configuração atual (vetores, pesos, turma).\nOs registos no Google Sheets são mantidos.')) return;
+  if(!confirm('Nova sessão de autoavaliação?\n\nOs alunos que já submeteram poderão submeter novamente.\nA configuração (vetores, pesos, disciplina) mantém-se.\nOs registos anteriores permanecem no Google Sheets.')) return;
   _autoAvData = [];
   localStorage.removeItem(KEY_AUTOAV_DONE);
   ls(KEY_AUTOAV, null);
@@ -4339,7 +4346,6 @@ function buildCombinedURL(){
     },
     a: {   // autoav
       d:  cfg.disciplina,
-      t:  cfg.turma,
       an: cfg.ano,
       al: cfg.anoLetivo,
       da: cfg.data||'',
@@ -4380,7 +4386,6 @@ function tryLoadCombinedFromURL(){
     if(raw.a && raw.a.v && raw.a.v.length){
       saveAutoAvCfg({
         disciplina: raw.a.d||'',
-        turma:      raw.a.t||'',
         ano:        raw.a.an||'',
         anoLetivo:  raw.a.al||'',
         data:       raw.a.da||'',
