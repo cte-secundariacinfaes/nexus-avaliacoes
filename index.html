@@ -675,15 +675,12 @@ textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba
   </nav>
 </div>
 
-<!-- SESSION INFO BAR -->
-<div class="sib" id="session-info-bar" style="display:none">
-  <span class="sib-item" id="sib-item-turma" style="display:none">🏫 <span class="sib-val" id="sib-turma"></span></span>
-  <span class="sib-sep" id="sib-sep-1" style="display:none;opacity:.4">·</span>
-  <span class="sib-item" id="sib-item-curso" style="display:none">📚 <span class="sib-val" id="sib-curso"></span></span>
-  <span class="sib-sep" id="sib-sep-2" style="display:none;opacity:.4">·</span>
-  <span class="sib-item" id="sib-item-tipo" style="display:none">🗂️ <span class="sib-val" id="sib-tipo"></span></span>
-  <span class="sib-sep" id="sib-sep-3" style="display:none;opacity:.4">·</span>
-  <span class="sib-item" id="sib-item-data" style="display:none">📅 <span class="sib-val" id="sib-data"></span></span>
+<!-- INFO BANNER (manual message from professor) -->
+<div id="info-banner" style="display:none;background:linear-gradient(90deg,#1B3A6B,#0284C7);
+  color:#fff;padding:7px 20px;font-size:.78rem;font-weight:500;
+  border-bottom:1px solid rgba(255,255,255,.15);text-align:center;line-height:1.5"
+  id="info-banner">
+  <span id="info-banner-text"></span>
 </div>
 
 <!-- ═══ WELCOME ═══ -->
@@ -811,7 +808,7 @@ textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba
     </p>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
       <button class="btn btn-primary" onclick="generateCombinedQR()">🔗 Gerar QR</button>
-      <button class="btn btn-outline" onclick="openNovaSessao()">🔄 Nova Sessão</button>
+      <button class="btn btn-danger" onclick="clearAllData()">🗑️ Apagar Tudo</button>
     </div>
     <div id="combined-qr-section" style="display:none;margin-top:14px">
       <div id="combined-short-badge" class="qr-short-badge" style="display:none">
@@ -836,40 +833,8 @@ textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba
     </div>
   </div>
 
-  <!-- MODAL NOVA SESSÃO -->
-  <div class="modal-overlay" id="nova-sessao-modal" style="display:none" onclick="if(event.target===this)closeNovaSessao()">
-    <div class="nova-sessao-box">
-      <h3>🔄 Nova Sessão — Mesma Turma</h3>
-      <p>Os grupos, membros e critérios são mantidos. Os votos atuais são exportados para JSON e apagados.</p>
-      <div class="nova-sessao-steps">
-        ✅ Grupos, membros e critérios <strong>mantidos</strong><br>
-        📥 Votos atuais <strong>exportados para JSON</strong><br>
-        🗑️ Votos apagados <strong>localmente e no Sheets</strong><br>
-        🔖 Tipo de sessão <strong>atualizado</strong>
-      </div>
-      <div class="session-field" style="margin-bottom:16px">
-        <label>Novo Tipo de Sessão</label>
-        <select id="nova-sessao-tipo" onchange="toggleNovaSessaoCustom()">
-          <option>1.ª Apresentação Intermédia</option>
-          <option>2.ª Apresentação Intermédia</option>
-          <option>3.ª Apresentação Intermédia</option>
-          <option>Apresentação Final (PAP)</option>
-          <option>Apresentação de Trabalho de Grupo</option>
-          <option>Pitch de Projeto</option>
-          <option>Defesa de Projeto</option>
-          <option value="custom">✏️ Outra (escrever)…</option>
-        </select>
-        <input type="text" id="nova-sessao-tipo-custom"
-          placeholder="Nome da sessão" style="display:none;margin-top:6px">
-      </div>
-      <div class="modal-btns">
-        <button class="btn btn-outline" style="flex:1" onclick="closeNovaSessao()">Cancelar</button>
-        <button class="btn btn-primary" style="flex:1" onclick="confirmNovaSessao()">📥 Exportar e Avançar</button>
-      </div>
-    </div>
-  </div>
 
-  <!-- ── ACESSO RÁPIDO ── -->
+    <!-- ── ACESSO RÁPIDO ── -->
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
 
     <div class="card" style="cursor:pointer;transition:.2s" onmouseenter="this.style.transform='translateY(-2px)'" onmouseleave="this.style.transform=''" onclick="openVoteCfg()">
@@ -884,6 +849,27 @@ textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba
       <button class="btn btn-outline btn-sm" style="margin-top:12px;width:100%" onclick="event.stopPropagation();askAutoAv()">⚙️ Configurar</button>
     </div>
 
+  </div>
+
+  <!-- ── INFORMAÇÃO DA SESSÃO ── -->
+  <div class="card">
+    <div class="card-title"><span class="ct-icon">📢</span> Informação da Sessão</div>
+    <p style="font-size:.81rem;color:var(--muted);margin-bottom:12px">
+      Mensagem exibida aos alunos na barra de informação ao entrar em Pares ou Autoavaliação.
+      Podes escrever livremente ou escolher uma das opções rápidas.
+    </p>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
+      <button class="btn btn-outline btn-sm" onclick="setSessaoInfo('📋 Avaliação de Pares · ' + (loadState().session?.turma||'') + ' · ' + (loadState().session?.tipo||''))">📋 Pares</button>
+      <button class="btn btn-outline btn-sm" onclick="setSessaoInfo('✍️ Autoavaliação · ' + (loadAutoAvCfg().disciplina||'') + ' · ' + (loadAutoAvCfg().turma||''))">✍️ Autoavaliação</button>
+      <button class="btn btn-outline btn-sm" onclick="setSessaoInfo('📅 ' + new Date().toLocaleDateString('pt-PT') + ' · ' + (loadState().session?.local||''))">📅 Data e Local</button>
+      <button class="btn btn-outline btn-sm" onclick="setSessaoInfo('')">✕ Limpar</button>
+    </div>
+    <textarea id="sessao-info-text" rows="2"
+      style="width:100%;border:1px solid var(--border);border-radius:8px;padding:8px 10px;
+             font-size:.82rem;resize:vertical;font-family:inherit"
+      placeholder="ex: 3.ºB EAC · 2.ª Apresentação Intermédia · 26/03/2026 · Auditório A"
+      oninput="saveSessaoInfo()"></textarea>
+    <p style="font-size:.7rem;color:var(--muted);margin-top:6px">A mensagem aparece automaticamente quando os alunos acedem via QR.</p>
   </div>
 
   <!-- ── TEMPLATES ── -->
@@ -1651,63 +1637,49 @@ function go(v){
 // ═══════════════════════════════════════════════════════════
 
 // ── Session Info Bar ─────────────────────────────────────────────────
-function updateSIB(mode){
-  // mode: 'vote' | 'autoav' | 'hide'
-  const bar = document.getElementById('session-info-bar');
-  if(!bar) return;
+// ── Session Info Banner ──────────────────────────────────────────────
+const KEY_SESSION_INFO = 'nexus_session_info';
 
-  function setItem(itemId, sepId, val){
-    const item = document.getElementById(itemId);
-    const sep  = document.getElementById(sepId);
-    const show = !!(val && val.trim());
-    if(item){ item.style.display = show ? '' : 'none'; }
-    if(sep)  sep.style.display   = 'none'; // separators managed after
-    return show;
-  }
+function saveSessaoInfo(){
+  const val = document.getElementById('sessao-info-text')?.value || '';
+  ls(KEY_SESSION_INFO, val);
+  showInfoBanner(true); // preview immediately
+}
 
-  if(mode === 'hide'){ bar.style.display='none'; return; }
+function setSessaoInfo(text){
+  const ta = document.getElementById('sessao-info-text');
+  if(ta){ ta.value = text; }
+  ls(KEY_SESSION_INFO, text);
+  showInfoBanner(true);
+}
 
-  const s   = loadState();
-  const ss  = s.session || {};
-  const cfg = loadAutoAvCfg();
+function loadSessaoInfoField(){
+  const val = ls(KEY_SESSION_INFO) || '';
+  const ta = document.getElementById('sessao-info-text');
+  if(ta) ta.value = val;
+}
 
-  let anyVisible = false;
-
-  if(mode === 'autoav'){
-    // Autoavaliação: mostra disciplina e turma da autoav
-    anyVisible |= setItem('sib-item-turma',  'sib-sep-1', cfg.turma || ss.turma);
-    document.getElementById('sib-turma').textContent = cfg.turma || ss.turma || '';
-    anyVisible |= setItem('sib-item-curso',  'sib-sep-2', cfg.disciplina);
-    document.getElementById('sib-curso').textContent = cfg.disciplina || '';
-    anyVisible |= setItem('sib-item-tipo',   'sib-sep-3', cfg.ano || cfg.anoLetivo);
-    const avDateParts = [cfg.ano, cfg.anoLetivo].filter(Boolean);
-    document.getElementById('sib-tipo').textContent  = avDateParts.join(' · ');
-    const avDate = cfg.data ? cfg.data.split('-').reverse().join('/') : '';
-    const avDateShow = setItem('sib-item-data', null, avDate);
-    if(avDateShow) document.getElementById('sib-data').textContent = avDate;
-    else document.getElementById('sib-item-data').style.display = 'none';
+function showInfoBanner(force){
+  const banner = document.getElementById('info-banner');
+  const span   = document.getElementById('info-banner-text');
+  if(!banner || !span) return;
+  const mode = window._appMode || 'full';
+  // Only show in student-facing modes or when forcing preview
+  const studentMode = mode !== 'full' || force;
+  const msg = ls(KEY_SESSION_INFO) || '';
+  if(msg && studentMode){
+    span.textContent = msg;
+    banner.style.display = 'block';
   } else {
-    // Votar (pares): mostra info da sessão
-    anyVisible |= setItem('sib-item-turma', 'sib-sep-1', ss.turma);
-    document.getElementById('sib-turma').textContent = ss.turma || '';
-    anyVisible |= setItem('sib-item-curso', 'sib-sep-2', ss.curso);
-    document.getElementById('sib-curso').textContent = ss.curso  || '';
-    anyVisible |= setItem('sib-item-tipo',  'sib-sep-3', ss.tipo);
-    document.getElementById('sib-tipo').textContent  = ss.tipo   || '';
-    const dataParts = [ss.data ? ss.data.split('-').reverse().join('/') : '', ss.hora, ss.local].filter(Boolean);
-    anyVisible |= setItem('sib-item-data', null, dataParts.join(' · '));
-    document.getElementById('sib-data').textContent  = dataParts.join(' · ');
+    banner.style.display = 'none';
   }
+}
 
-  // Show separators between visible items
-  const items = ['sib-item-turma','sib-item-curso','sib-item-tipo','sib-item-data'];
-  const seps  = ['sib-sep-1','sib-sep-2','sib-sep-3'];
-  const visible = items.map(id => { const el=document.getElementById(id); return el && el.style.display !== 'none'; });
-  // Show sep between two consecutive visible items
-  let lastVis = -1;
-  visible.forEach((v,i)=>{ if(v){ if(lastVis>=0 && seps[lastVis]) { const s=document.getElementById(seps[lastVis]); if(s) s.style.display=''; } lastVis=i; } });
-
-  bar.style.display = anyVisible ? 'flex' : 'none';
+function updateSIB(viewMode){
+  // viewMode: 'vote' | 'autoav' | 'hide'
+  // Now just controls info banner visibility
+  if(viewMode === 'hide'){ showInfoBanner(false); return; }
+  showInfoBanner(true);
 }
 function renderSessionHero(){
   const s=loadState(); const ss=s.session||{};
@@ -2314,16 +2286,12 @@ function applyNavMode(){
   document.body.dataset.mode = mode;
   if(icon) icon.textContent = '🏫';
 
-  if(mode === 'student'){
-    // Topbar shows session title for student
-    const s   = loadState(); const ss = s.session||{};
-    const cfg = loadAutoAvCfg();
+  // Topbar always shows "Nexus Avaliações" — info is in the banner below
+  if(mode !== 'full'){
     const titleEl = document.getElementById('topbar-title');
     const dot = document.getElementById('sync-dot');
-    const t = ss.tipo || cfg.disciplina || 'Nexus Avaliações';
-    if(titleEl){ titleEl.innerHTML = t+' '; if(dot) titleEl.appendChild(dot); }
-    document.getElementById('topbar-sub').textContent =
-      [ss.turma||cfg.ano, ss.curso||cfg.anoLetivo].filter(Boolean).join(' · ') || 'O que vais fazer hoje?';
+    if(titleEl){ titleEl.innerHTML = 'Nexus Avaliações '; if(dot) titleEl.appendChild(dot); }
+    document.getElementById('topbar-sub').textContent = 'Sistema de Avaliação';
   }
   // full mode: updatePageTitle() handles topbar
 }
@@ -2350,6 +2318,7 @@ function renderAdmin(){
   loadPwdLabels();
   document.getElementById('sheets-url').value=getURL()||HARDCODED_URL;
   updateQueueBadge();
+  loadSessaoInfoField();
 }
 
 function renderAdmGroups(){
@@ -2664,50 +2633,53 @@ function shareWhatsApp(){
 // ═══════════════════════════════════════════════════════════
 // NOVA SESSÃO
 // ═══════════════════════════════════════════════════════════
-function openNovaSessao(){
-  const s=loadState();
-  const tipos=['1.ª Apresentação Intermédia','2.ª Apresentação Intermédia','3.ª Apresentação Intermédia','Apresentação Final (PAP)','Apresentação de Trabalho de Grupo','Pitch de Projeto','Defesa de Projeto'];
-  const cur=s.session?.tipo||''; const idx=tipos.indexOf(cur);
-  const next=tipos[Math.min(idx+1,tipos.length-1)]||tipos[0];
-  const sel=document.getElementById('nova-sessao-tipo'); if(sel) sel.value=next;
-  document.getElementById('nova-sessao-modal').style.display='flex';
-}
-function closeNovaSessao(){ document.getElementById('nova-sessao-modal').style.display='none'; }
-function toggleNovaSessaoCustom(){
-  const sel=document.getElementById('nova-sessao-tipo');
-  const inp=document.getElementById('nova-sessao-tipo-custom');
-  if(!inp) return;
-  inp.style.display=sel.value==='custom'?'block':'none';
-  if(sel.value==='custom') setTimeout(()=>inp.focus(),60);
-}
-async function confirmNovaSessao(){
-  const sel=document.getElementById('nova-sessao-tipo');
-  const customEl=document.getElementById('nova-sessao-tipo-custom');
-  const novoTipo=sel.value==='custom'?(customEl?.value.trim()||'Apresentação'):sel.value;
-  const s=loadState();
-  const driveEvidence=getPhotos().filter(p=>p.type==='link')
-    .map(p=>({url:p.data,label:p.label,ts:p.ts}));
-  const backup={_tipo:'backup_votos',_created:new Date().toISOString(),
-    session:s.session||{},groups:s.groups,
-    votes:s.votes||{},memberVotes:s.memberVotes||{},
-    profVotes:s.profVotes||{},
-    driveLinks:driveEvidence};
-  const slug=((s.session?.turma||'turma')+'-'+(s.session?.tipo||'sessao'))
-    .replace(/[\s\.ªº]+/g,'-').toLowerCase().substring(0,40);
-  dl(new Blob([JSON.stringify(backup,null,2)],{type:'application/json'}),'votos_'+slug+'_'+stamp()+'.json');
-  toast('📥 Votos exportados! A limpar...');
-  ls(KEY_PHOTOS,[]);
-  saveState(s=>{
-    s.votes={};s.memberVotes={};s.profVotes={};s.drawOrder=[];
-    if(s.session) s.session.tipo=novoTipo;
-    else s.session={...DEFAULT_SESSION,tipo:novoTipo};
-  });
+async function clearAllData(){
+  if(!confirm(
+    '⚠️ APAGAR TODOS OS DADOS?\n\n' +
+    'Isto irá apagar permanentemente:\n' +
+    '• Todos os votos (pares, professor)\n' +
+    '• Todas as autoavaliações\n' +
+    '• Histórico de sessão\n\n' +
+    'Os grupos, membros e critérios são mantidos.\n' +
+    'Esta operação não pode ser desfeita.'
+  )) return;
+
+  // Export backup first
+  const s = loadState();
+  const backup = {
+    _tipo:'backup_completo', _created:new Date().toISOString(),
+    session:s.session||{}, groups:s.groups,
+    votes:s.votes||{}, memberVotes:s.memberVotes||{},
+    profVotes:s.profVotes||{}, autoav:_autoAvData
+  };
+  dl(new Blob([JSON.stringify(backup,null,2)],{type:'application/json'}),
+    'nexus_backup_'+stamp()+'.json');
+
+  toast('📥 Backup exportado. A apagar...');
+
+  // Clear votes
+  saveState(s=>{ s.votes={}; s.memberVotes={}; s.profVotes={}; s.drawOrder=[]; });
   clearVotedLocal(); setQueue([]);
-  const res=await postToSheet({action:'clearVotes'});
-  if(res&&res.ok) toast('✅ Nova sessão pronta: '+novoTipo);
-  else toast('⚠️ Votos locais limpos. Sheets não atualizado.','warn');
-  closeNovaSessao(); renderAdmin(); renderAdmGroups(); updatePageTitle();
-  setTimeout(generateShareLink,300);
+  try{ ls(KEY_PHOTOS,[]); }catch(e){}
+
+  // Clear autoav
+  _autoAvData = [];
+  try{ localStorage.removeItem(KEY_AUTOAV_DONE); }catch(e){}
+  renderAutoAvResults();
+
+  // Clear on Sheets
+  setSyncStatus('spin','A apagar no Sheets...');
+  const r1 = await postToSheet({action:'clearVotes'});
+  const r2 = await postToSheet({action:'clearAutoAv'});
+
+  if(r1?.ok && r2?.ok){
+    toast('✅ Todos os dados apagados!');
+    setSyncStatus('ok','Limpo');
+  } else {
+    toast('⚠️ Dados locais apagados. Verifica o Sheets manualmente.','warn');
+    setSyncStatus('warn','Verificar Sheets');
+  }
+  renderAdmin(); updatePageTitle();
 }
 
 
