@@ -2368,7 +2368,15 @@ function renderAdmGroups(){
 async function clearAutoAvData(){
   const cfg=loadAutoAvCfg();
   const disc=cfg.disciplina||'';
-  const sheetName=disc?('AA_'+disc.trim().split(/[\s,\-]+/).filter(w=>!['e','de','da','do','a'].includes(w.toLowerCase())).slice(0,6).map(w=>w[0].toUpperCase()).join('')):'';
+  const sheetName=(function(){
+    const d=(disc||'').trim();
+    if(!d) return '';
+    const stop=new Set(['e','a','o','de','da','do','das','dos','em']);
+    const tokens=d.match(/[0-9]+|[^\s,\-&0-9]+/g)||[];
+    let abbr='';
+    tokens.forEach(t=>{ if(/^[0-9]+$/.test(t)){abbr+=t;}else if(!stop.has(t.toLowerCase())&&t.length>0){abbr+=t[0].toUpperCase();} });
+    return 'AA_'+(abbr||d.substring(0,3).toUpperCase());
+  })();
   const msg=disc
     ? `Apagar as autoavaliações de "${disc}" no Sheets?`
     : 'Apagar TODAS as autoavaliações no Sheets?';
@@ -3896,7 +3904,7 @@ function saveAutoAvCfgUI(){
   if(total!==100){toast('⚠️ Os pesos têm de somar 100%. Actualmente: '+total+'%','warn');return;}
   saveAutoAvCfg(cfg);
   toast('✅ Configuração guardada!');
-  renderAutoAvView();
+  renderAutoAvCfg(); // stay on config page — just refresh the config UI
 }
 
 // ── QR / Share ────────────────────────────────────────────────────────
