@@ -1266,9 +1266,7 @@ textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba
         <div style="font-size:.75rem;font-weight:700;color:var(--navy);margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em">Folhas disponíveis</div>
         <div id="autoav-sheets-items" style="display:flex;gap:6px;flex-wrap:wrap"></div>
       </div>
-      <div id="autoav-sheet-list" style="margin-bottom:12px;padding:8px 0">
-            <span style="color:var(--muted);font-size:.8rem">Clica em "Listar folhas" para ver as folhas no Sheets.</span>
-          </div>
+
           <div id="autoav-results-container">
         <div style="color:var(--muted);font-size:.84rem;padding:20px;text-align:center">
           Clica em 🔄 Listar Disciplinas para ver as folhas disponíveis no Sheets.
@@ -4051,11 +4049,21 @@ function renderAutoAvSheetsList(){
   if(!wrap||!items) return;
   if(!_autoAvSheets.length){wrap.style.display='none';return;}
   wrap.style.display='block';
-  items.innerHTML=_autoAvSheets.map(s=>{
-    const short=s.sheetName.replace('AA_','');
-    const disc=(s.disciplina||short).replace(/'/g,"\\'");
-    return '<button class="btn btn-outline btn-sm" onclick="importAutoAvSheet(\''+s.sheetName+'\',\''+disc+'\')">📋 '+short+' <span style=\"font-size:.68rem;opacity:.6\">'+(s.count||0)+'r</span></button>';
-  }).join('');
+  let html='';
+  _autoAvSheets.forEach(function(s){
+    const name=s.name||'';
+    const short=name.replace('AA_','');
+    const plural=s.rows!==1?'s':'';
+    html+='<div style="display:flex;align-items:center;gap:6px;padding:4px 0;border-bottom:1px solid #F1F5F9">';
+    html+='<span style="font-size:.82rem;flex:1"><strong>'+name+'</strong>';
+    html+=' <span style="color:var(--muted);font-size:.75rem">('+s.rows+' registo'+plural+')</span></span>';
+    html+='<button class="btn btn-outline btn-sm" style="font-size:.72rem;padding:2px 8px"';
+    html+=' onclick="importAutoAvSheet(this.dataset.n,this.dataset.s)" data-n="'+name+'" data-s="'+short+'">Importar</button>';
+    html+='<button class="btn btn-danger btn-sm" style="font-size:.72rem;padding:2px 8px"';
+    html+=' onclick="deleteAutoAvSheet(this.dataset.n)" data-n="'+name+'">Apagar</button>';
+    html+='</div>';
+  });
+  items.innerHTML=html;
 }
 
 // (listAutoAvSheets merged above)
@@ -4068,7 +4076,7 @@ async function deleteAutoAvSheet(sheetName){
     if(res&&res.ok){
       _autoAvData=_autoAvData.filter(r=>r.sheetName!==sheetName);
       renderAutoAvResults();
-      await refreshAutoAvSheetList();
+      await listAutoAvSheets();
       toast('🗑️ Folha "'+sheetName+'" eliminada.');
       setSyncStatus('ok','Ligado');
     } else {
@@ -4078,29 +4086,7 @@ async function deleteAutoAvSheet(sheetName){
   }catch(e){ toast('❌ '+e.message,'warn'); setSyncStatus('err','Erro'); }
 }
 
-async function refreshAutoAvSheetList(){
-  const container=document.getElementById('autoav-sheet-list');
-  if(!container) return;
-  const sheets=await listAutoAvSheets();
-  if(!sheets.length){
-    container.innerHTML='<span style="color:var(--muted);font-size:.8rem">Nenhuma folha de autoavaliação criada ainda.</span>';
-    return;
-  }
-  let html='';
-  sheets.forEach(function(s){
-    const short=s.name.replace('AA_','');
-    const plural=s.rows!==1?'s':'';
-    html+='<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #F1F5F9">';
-    html+='<span style="font-size:.82rem;flex:1">📋 <strong>'+s.name+'</strong>';
-    html+=' <span style="color:var(--muted)">('+s.rows+' registo'+plural+')</span></span>';
-    html+='<button class="btn btn-outline btn-sm" style="font-size:.72rem;padding:2px 8px"';
-    html+=' onclick="importAutoAvSheet(this.dataset.n,this.dataset.s)" data-n="'+s.name+'" data-s="'+short+'">⬇ Importar</button>';
-    html+='<button class="btn btn-danger btn-sm" style="font-size:.72rem;padding:2px 8px"';
-    html+=' onclick="deleteAutoAvSheet(this.dataset.n)" data-n="'+s.name+'">🗑</button>';
-    html+='</div>';
-  });
-  container.innerHTML=html;
-}
+
 
 async function importAutoAvSheet(sheetName, disciplinaLabel){
   if(!getURL()){toast('Configura o URL do Google Sheets primeiro.','warn');return;}
