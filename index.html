@@ -1246,6 +1246,10 @@ textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba
 
   <!-- PROFESSOR: resultados (password-protected, shown after auth) -->
   <div id="autoav-prof-section" style="display:none">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+      <button class="btn btn-outline btn-sm" onclick="go('admin')">← Voltar a Gerir</button>
+      <div style="font-size:1rem;font-weight:800;color:var(--navy)">✍️ Configuração — Autoavaliação</div>
+    </div>
     <div class="card">
       <div class="card-title"><span class="ct-icon">✍️</span> Resultados de Autoavaliação
         <button class="btn btn-outline btn-sm" style="margin-left:auto"
@@ -2304,7 +2308,7 @@ function updatePageTitle(){
   // Brand name is always "Nexus Avaliações" — session tipo goes to subtitle
   const subParts = [ss.tipo, ss.turma, ss.curso].filter(Boolean);
   const subName  = subParts.join(' · ') || 'Sistema de Avaliação';
-  document.title = subParts.length ? 'Nexus Avaliações · ' + subParts[0] : 'Nexus Avaliações';
+  document.title = 'Nexus Avaliações';
   const titleEl=document.getElementById('topbar-title');
   if(titleEl){
     const dot=document.getElementById('sync-dot');
